@@ -96,7 +96,7 @@ do
 			rm ${ID}_R2_unpaired.fastq
 		fi
 	fi
-one
+done
 for ID in $(ls | grep -P -o '.*(?=(_sambamba.sorted.bam))')
 do
 	if [ ! -d ${ID}_Ballgown_Table ];then
