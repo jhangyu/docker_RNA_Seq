@@ -1,13 +1,14 @@
-fastqDir=/data/fastq/tilapia/Huang/sex_difference
-genomeDir=/data/tilapia_source_file
-genomeFile=tilapia.fa
+fastqDir=/data/docker/fastq
+genomeDir=/data/docker/source_file
+genomeFile=mushroom_clear_scaffold.fasta
 genomeName=${genomeFile%.*}
-gffFile=tilapia_20171005_with_yp_genes.gff3
+gffFile=mushroom_remove_parent.gff3
 gffName=${gffFile%.*}
 project_species=tilapia
-R1_Append=_R1.fastq
-R2_Append=_R2.fastq
-cpu_threads=grep -c ^processor /proc/cpuinfo
+R1_Append=_R1_val_1.fq
+R2_Append=_R2_val_2.fq
+cpu_threads=$(nproc)
+
 cd ${fastqDir}
 for ID in $(ls | grep -P -o '.*(?=(_R1.fastq))')
 do
