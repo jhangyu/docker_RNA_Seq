@@ -1,14 +1,18 @@
-fastqDir=/data/docker/fastq
-genomeDir=/data/docker/source_file
-genomeFile=mushroom_clear_scaffold.fasta
+fastqDir=/data/fastq/tilapia/2018_tilapia_genome
+genomeDir=/data/tilapia_source_file
+genomeFile=tilapia.fa
 genomeName=${genomeFile%.*}
-gffFile=mushroom_remove_parent.gff3
+gffFile=tilapia_20171005_with_yp_genes.gff3
 gffName=${gffFile%.*}
 project_species=tilapia
-R1_Append=_R1_val_1.fq
-R2_Append=_R2_val_2.fq
-cpu_threads=$(nproc)
+R1_Append=_R1.fastq
+R2_Append=_R2.fastq
 
+
+cpu_threads=$(nproc)
+gatk_path=$(echo $(which gatk)/$(readlink $(which gatk)) | sed 's/bin\/gatk\/\.\.\///g' | sed 's/gatk$//g')$(ls $(echo $(which gatk)/$(readlink $(which gatk)) | sed 's/bin\/gatk\/\.\.\///g' | sed 's/gatk$//g') | grep -P -o '.*.jar$')
+picard_path=$(echo $(which picard)/$(readlink $(which picard)) | sed 's/bin\/picard\/\.\.\///g').jar
+java_path=$(which java)
 cd ${fastqDir}
 for ID in $(ls | grep -P -o '.*(?=(_R1.fastq))')
 do
@@ -130,7 +134,10 @@ do
 	fi
 	if [ ! -f ${ID}_rg_added_sorted.bam ];then
 		echo process AddOrReplaceReadGroups ${ID}
-		nohup /opt/conda/bin/java -Djava.io.tmpdir=/data/tmp -Xms1g -Xmx4g -jar /opt/conda/share/gatk4-4.0.4.0-0/gatk-package-4.0.4.0-local.jar AddOrReplaceReadGroups I=${ID}.sam O=${ID}_rg_added_sorted.bam SO=coordinate RGID=id RGLB=library RGPL=platform RGPU=machine RGSM=sample >${ID}_addorresortgroup.log &
+		RGID=$(grep -v @ ${ID}.sam | head -1 | cut -f 1 | cut -d ':' -f 3 | cut -c -5)
+		RGPU=$(grep -v @ ${ID}.sam | head -1 | cut -f 1 | cut -d ':' -f 3)
+		RGLB=$(echo ${ID} | cut -d "_" -f 1)
+		nohup ${java_path} -Djava.io.tmpdir=/data/tmp -Xms1g -Xmx4g -jar ${picard_path} AddOrReplaceReadGroups I=${ID}.sam O=${ID}_rg_added_sorted.bam SO=coordinate RGID=${RGID} RGLB=${RGLB} RGPL=illumina RGPU=${RGPU} RGSM=${ID} &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} AddOrReplaceReadGroups
@@ -142,7 +149,7 @@ for ID in $(ls | grep -P -o '.*(?=(_rg_added_sorted.bam))')
 do
 	if [ ! -f ${ID}_dedupped.bam ];then
 		echo process MarkDuplicates ${ID}
-		nohup /opt/conda/bin/java -Djava.io.tmpdir=/data/tmp -Xms1g -Xmx4g -jar /opt/conda/share/gatk4-4.0.4.0-0/gatk-package-4.0.4.0-local.jar MarkDuplicates I=${ID}_rg_added_sorted.bam O=${ID}_dedupped.bam  CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=output.metrics > ${ID}_markduplicates.log &
+		nohup nohup ${java_path} -Djava.io.tmpdir=/data/tmp -Xms1g -Xmx4g -jar ${picard_path} MarkDuplicates I=${ID}_rg_added_sorted.bam O=${ID}_dedupped.bam  CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=output.metrics &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} MarkDuplicates
@@ -158,7 +165,7 @@ for ID in $(ls | grep -P -o '.*(?=(_dedupped.bam))')
 do
 	if [ ! -f ${ID}_split.bam ];then
 		echo process SplitNCigarReads ${ID}
-		nohup java -Djava.io.tmpdir=/data/tmp -Xmx20g -jar /opt/conda/share/gatk4-4.0.4.0-0/gatk-package-4.0.4.0-local.jar -T SplitNCigarReads -R ${genomeDir}/${genomeFile} -I ${ID}_dedupped.bam -o ${ID}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS &
+		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xmx20g" -T SplitNCigarReads -R ${genomeDir}/${genomeFile} -I ${ID}_dedupped.bam -o ${ID}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} SplitNCigarReads
@@ -170,7 +177,7 @@ for ID in $(ls | grep -P -o '.*(?=(_split.bam))')
 do
 	if [ ! -f ${ID}.vcf ];then
 		echo process Variant Calling ${ID}
-		nohup java -Djava.io.tmpdir=/data/tmp -Xmx60g -jar /opt/conda/share/gatk4-4.0.4.0-0/gatk-package-4.0.4.0-local.jar HaplotypeCaller -R ${genomeDir}/${genomeFile} -I ${ID}_split.bam -dontUseSoftClippedBases -stand_call_conf 20.0 -O ${ID}.vcf &
+		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xms1g -Xmx60g" HaplotypeCaller -R ${genomeDir}/${genomeFile} -I ${ID}_split.bam --native-pair-hmm-threads ${cpu_threads} --dont-use-soft-clipped-bases -stand-call-conf 20.0 -O ${ID}.vcf &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} Variant Calling
