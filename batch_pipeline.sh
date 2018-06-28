@@ -149,7 +149,7 @@ for ID in $(ls | grep -P -o '.*(?=(_rg_added_sorted.bam))')
 do
 	if [ ! -f ${ID}_dedupped.bam ];then
 		echo process MarkDuplicates ${ID}
-		nohup nohup ${java_path} -Djava.io.tmpdir=/data/tmp -Xms1g -Xmx4g -jar ${picard_path} MarkDuplicates I=${ID}_rg_added_sorted.bam O=${ID}_dedupped.bam  CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=output.metrics &
+		nohup ${java_path} -Djava.io.tmpdir=/data/tmp -Xms1g -Xmx4g -jar ${picard_path} MarkDuplicates I=${ID}_rg_added_sorted.bam O=${ID}_dedupped.bam  CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=output.metrics &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} MarkDuplicates
