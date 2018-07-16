@@ -5,20 +5,22 @@ genomeName=${genomeFile%.*}
 gffFile=tilapia_20171005_with_yp_genes.gff3
 gffName=${gffFile%.*}
 project_species=tilapia
-R1_Append=_R1.fastq
-R2_Append=_R2.fastq
+R1_Append=_R1.fastq.gz
+R2_Append=_R2.fastq.gz
 
 
 cpu_threads=$(nproc)
 gatk_path=$(echo $(which gatk)/$(readlink $(which gatk)) | sed 's/bin\/gatk\/\.\.\///g' | sed 's/gatk$//g')$(ls $(echo $(which gatk)/$(readlink $(which gatk)) | sed 's/bin\/gatk\/\.\.\///g' | sed 's/gatk$//g') | grep -P -o '.*.jar$')
 picard_path=$(echo $(which picard)/$(readlink $(which picard)) | sed 's/bin\/picard\/\.\.\///g').jar
 java_path=$(which java)
+trimmomatic_path=$(echo $(which trimmomatic)/$(readlink $(which trimmomatic)) | sed 's/bin\/trimmomatic\/\.\.\///g' | sed 's/\/trimmomatic$//g')
+
 cd ${fastqDir}
-for ID in $(ls | grep -P -o '.*(?=(_R1.fastq))')
+for ID in $(ls | grep -P -o '.*(?=(_R1.fastq.gz))')
 do
 	if [ ! -f ${ID}_R1_paired.fastq ] && [ ! -f ${ID}_sambamba.bam ];then
 		echo process trimming ${ID}
-		nohup trimmomatic PE -threads ${cpu_threads} -trimlog ${ID}_trim.log ${ID}${R1_Append} ${ID}${R2_Append} ${ID}_R1_paired.fastq ${ID}_R1_unpaired.fastq ${ID}_R2_paired.fastq ${ID}_R2_unpaired.fastq ILLUMINACLIP:/opt/conda/share/trimmomatic/adapters/TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 &
+		nohup trimmomatic PE -threads ${cpu_threads} ${ID}${R1_Append} ${ID}${R2_Append} ${ID}_R1_paired.fastq.gz ${ID}_R1_unpaired.fastq.gz ${ID}_R2_paired.fastq.gz ${ID}_R2_unpaired.fastq.gz ILLUMINACLIP:${trimmomatic_path}/adapters/TruSeq2-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30 &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} trimming
@@ -30,7 +32,7 @@ echo ====== Finish Trimming ======
 echo
 echo ====== Start Mapping ======
 
-for ID in $(ls | grep -P -o '.*(?=(_R1_paired.fastq))')
+for ID in $(ls | grep -P -o '.*(?=(_R1_paired.fastq.gz))')
 do
 	if [ ! -f ${ID}.sam ] && [ ! -f ${ID}_rg_added_sorted.bam ];then
 
@@ -66,7 +68,7 @@ do
 		fi
 
 		echo process mapping ${ID}
-		nohup hisat2 -p ${cpu_threads} -x ${genomeDir}/${genomeFile} -1 ${ID}_R1_paired.fastq -2 ${ID}_R2_paired.fastq --known-splicesite-infile ${genomeDir}/${gffName}_splicesites.txt -S ${ID}.sam &
+		nohup hisat2 -p ${cpu_threads} -x ${genomeDir}/${genomeFile} -1 ${ID}_R1_paired.fastq.gz -2 ${ID}_R2_paired.fastq.gz --known-splicesite-infile ${genomeDir}/${gffName}_splicesites.txt -S ${ID}.sam &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} mapping
@@ -92,12 +94,12 @@ do
 		echo
 		echo start waitting for finish ${ID} Sambamba Sort
 		wait $pids
-		if [ -f ${ID}_R1_paired.fastq ];then
+		if [ -f ${ID}_R1_paired.fastq.gz ];then
 			echo ====== Deleting FASTQ File ======
 		#	rm ${ID}_R1_paired.fastq
 		#	rm ${ID}_R2_paired.fastq
-			rm ${ID}_R1_unpaired.fastq
-			rm ${ID}_R2_unpaired.fastq
+			rm ${ID}_R1_unpaired.fastq.gz
+			rm ${ID}_R2_unpaired.fastq.gz
 		fi
 	fi
 done
@@ -177,7 +179,7 @@ for ID in $(ls | grep -P -o '.*(?=(_split.bam))')
 do
 	if [ ! -f ${ID}.vcf ];then
 		echo process Variant Calling ${ID}
-		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xms1g -Xmx60g" HaplotypeCaller -R ${genomeDir}/${genomeFile} -I ${ID}_split.bam --native-pair-hmm-threads ${cpu_threads} --dont-use-soft-clipped-bases -stand-call-conf 20.0 -O ${ID}.vcf &
+		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xms1g -Xmx60g" HaplotypeCaller -R ${genomeDir}/${genomeFile} -I ${ID}_split.bam --dont-use-soft-clipped-bases -stand-call-conf 20.0 -O ${ID}.vcf &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} Variant Calling
