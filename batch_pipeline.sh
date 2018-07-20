@@ -1,13 +1,12 @@
-fastqDir=/data/fastq/tilapia/2018_tilapia_genome
+fastqDir=/data/fastq/tilapia/Huang/sex_difference/trimming
 genomeDir=/data/tilapia_source_file
 genomeFile=tilapia.fa
 genomeName=${genomeFile%.*}
 gffFile=tilapia_20171005_with_yp_genes.gff3
 gffName=${gffFile%.*}
 project_species=tilapia
-R1_Append=_R1.fastq.gz
-R2_Append=_R2.fastq.gz
-
+R1_Append=_R1.gz
+R2_Append=_R2.gz
 
 cpu_threads=$(nproc)
 gatk_path=$(echo $(which gatk)/$(readlink $(which gatk)) | sed 's/bin\/gatk\/\.\.\///g' | sed 's/gatk$//g')$(ls $(echo $(which gatk)/$(readlink $(which gatk)) | sed 's/bin\/gatk\/\.\.\///g' | sed 's/gatk$//g') | grep -P -o '.*.jar$')
@@ -16,11 +15,11 @@ java_path=$(which java)
 trimmomatic_path=$(echo $(which trimmomatic)/$(readlink $(which trimmomatic)) | sed 's/bin\/trimmomatic\/\.\.\///g' | sed 's/\/trimmomatic$//g')
 
 cd ${fastqDir}
-for ID in $(ls | grep -P -o '.*(?=(_R1.fastq.gz))')
+for ID in $(ls | grep -P -o '.*(?=(_R1.gz))')
 do
 	if [ ! -f ${ID}_R1_paired.fastq ] && [ ! -f ${ID}_sambamba.bam ];then
 		echo process trimming ${ID}
-		nohup trimmomatic PE -threads ${cpu_threads} ${ID}${R1_Append} ${ID}${R2_Append} ${ID}_R1_paired.fastq.gz ${ID}_R1_unpaired.fastq.gz ${ID}_R2_paired.fastq.gz ${ID}_R2_unpaired.fastq.gz ILLUMINACLIP:${trimmomatic_path}/adapters/TruSeq2-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30 &
+		nohup trimmomatic PE -threads ${cpu_threads} ${ID}${R1_Append} ${ID}${R2_Append} ${ID}_R1_paired.fastq.gz ${ID}_R1_unpaired.fastq.gz ${ID}_R2_paired.fastq.gz ${ID}_R2_unpaired.fastq.gz ILLUMINACLIP:${trimmomatic_path}/adapters/TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30 &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} trimming
@@ -167,7 +166,7 @@ for ID in $(ls | grep -P -o '.*(?=(_dedupped.bam))')
 do
 	if [ ! -f ${ID}_split.bam ];then
 		echo process SplitNCigarReads ${ID}
-		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xmx20g" -T SplitNCigarReads -R ${genomeDir}/${genomeFile} -I ${ID}_dedupped.bam -o ${ID}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS &
+		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xmx20g" SplitNCigarReads -R ${genomeDir}/${genomeFile} -I ${ID}_dedupped.bam -O ${ID}_split.bam &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} SplitNCigarReads
@@ -179,7 +178,7 @@ for ID in $(ls | grep -P -o '.*(?=(_split.bam))')
 do
 	if [ ! -f ${ID}.vcf ];then
 		echo process Variant Calling ${ID}
-		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xms1g -Xmx60g" HaplotypeCaller -R ${genomeDir}/${genomeFile} -I ${ID}_split.bam --dont-use-soft-clipped-bases -stand-call-conf 20.0 -O ${ID}.vcf &
+		nohup gatk --java-options "-Djava.io.tmpdir=/data/tmp -Xms1g -Xmx20g" HaplotypeCaller -R ${genomeDir}/${genomeFile} -I ${ID}_split.bam -stand-call-conf 20.0 -O ${ID}.vcf &
 		pids="$pids $!"
 		echo
 		echo start waitting for finish ${ID} Variant Calling
