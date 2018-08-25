@@ -1,11 +1,5 @@
 import itertools
 file_list=["D4_0.clean.variant.txt", "D4_1.clean.variant.txt", "D5_0.clean.variant.txt", "D5_1.clean.variant.txt"]
-#file_list=["1.txt", "2.txt", "3.txt", "4.txt"]
-a=[1,2,5,10,8,9]
-b=[2,10,4,8,7,9]
-c=[2,3,5,10,4,7]
-d=[2,6,5,10,8,4,7]
-test_list=[a,b,c,d]
 
 
 def getHeader(sample_input_list):
@@ -91,12 +85,6 @@ def intersection(comb_list,all_set_list):
 			else:
 				complement_union_result=set()
 			purely_specific_region=intersection_result-complement_union_result
-			#print(process_list_set)
-			#print(process_complement_list_set)
-			#print("Intersection result is :"+str(intersection_result))
-			#print("Union result is :"+str(union_result))
-			#print("Complement Union result is :"+str(complement_union_result))
-			#print("Purely specific region is :"+str(purely_specific_region)+"\n")
 			print("Union region calling numbers is :"+str(len(union_result)))
 			print("Purely specific region calling numbers is :"+str(len(purely_specific_region))+"\n")
 			process_set_result_dict[tuple(each_set_list)]=purely_specific_region
@@ -109,18 +97,13 @@ def lookup_whole_value_from_key(set_key_dict,key_whole_value_dict_array):
 		print(purely_specific_region)
 		calling_value_set=set()
 		for calling_key in calling_key_set:
-			#print(calling_key)
 			if_has_replace=0
 			for sample_number in purely_specific_region:
-				#print(sample_number)
 				if if_has_replace==0:
 					calling_value=key_whole_value_dict_array[sample_number][calling_key]
 					calling_value_set.add(calling_value)
 					if_has_replace=if_has_replace+1
-			#print(calling_value)
-			#print("\n")
 		region_calling_value_dict[purely_specific_region]=calling_value_set
-	#print(region_calling_value_dict)
 	print("\n\n")
 	return region_calling_value_dict
 
